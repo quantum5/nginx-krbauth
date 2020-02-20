@@ -67,14 +67,21 @@ The group is specified through the WSGI environment variable
 The following environment variables are used to configure `nginx_krbauth`'s
 LDAP support:
 
-* `KRBAUTH_LDAP_SERVER` (required): The LDAP URI used to connect to the LDAP
-  server.
-* `KRBAUTH_LDAP_SEARCH_BASE` (required): The root of the subtree to search for
-  LDAP entities for `krbPrincipalName` and group membership.
+* `KRBAUTH_LDAP_SERVER`: The LDAP URI used to connect to the LDAP server.
+* `KRBAUTH_LDAP_SEARCH_BASE`: The root of the subtree to search for LDAP
+  entities for `krbPrincipalName` and group membership.
 * `KRBAUTH_LDAP_BIND_DN`: The DN used to bind to the LDAP server. Leave blank
   for anonymous bind.
 * `KRBAUTH_LDAP_BIND_AUTHTOK`: The password used to bind to the LDAP server.
   Leave blank for anonymous bind.
+
+LDAP binding can also be used as a fallback authentication mechanism through
+HTTP Basic authentication. This is useful when SPNEGO is not supported, or when
+the client does not support Kerberos. To use this, configure:
+
+* `LDAP_USER_DN`: A string template to convert usernames into LDAP DNs. There
+  should be one `%s` symbol in this string, which will be replaced by the
+  username.
 
 ## Example `nginx.conf`
 

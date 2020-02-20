@@ -25,10 +25,10 @@ digest_size = hmac_digest().digest_size
 HMAC_KEY = os.environ['KRBAUTH_HMAC_KEY'].encode('utf-8')
 DURATION = int(os.environ.get('KRBAUTH_KEY_DURATION', 3600))
 RANDOM_SIZE = int(os.environ.get('KRBAUTH_RANDOM_SIZE', 32))
-LDAP_SERVER = os.environ['KRBAUTH_LDAP_SERVER']
+LDAP_SERVER = os.environ.get('KRBAUTH_LDAP_SERVER')
 LDAP_BIND_DN = os.environ.get('KRBAUTH_LDAP_BIND_DN')
 LDAP_BIND_AUTHTOK = os.environ.get('KRBAUTH_LDAP_BIND_AUTHTOK')
-LDAP_SEARCH_BASE = os.environ['KRBAUTH_LDAP_SEARCH_BASE']
+LDAP_SEARCH_BASE = os.environ.get('KRBAUTH_LDAP_SEARCH_BASE')
 LDAP_USER_DN = os.environ.get('KRBAUTH_LDAP_USER_DN')
 assert not LDAP_USER_DN or LDAP_USER_DN.count('%s') == 1
 
@@ -124,7 +124,7 @@ def auth_spnego(context, next_url):
     except (GSSError, GeneralError) as e:
         return make_401(str(e), context)
 
-    if LDAP_SERVER and context.ldap_group:
+    if LDAP_SERVER and LDAP_SEARCH_BASE and context.ldap_group:
         ldap_ctx = ldap.initialize(LDAP_SERVER)
         if LDAP_BIND_DN and LDAP_BIND_AUTHTOK:
             ldap_ctx.bind_s(LDAP_BIND_DN, LDAP_BIND_AUTHTOK, ldap.AUTH_SIMPLE)
