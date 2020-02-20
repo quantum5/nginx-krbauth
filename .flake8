@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 120
+import-order-style = pycharm
+enable-extensions = G
+ignore =
+    W504, # line break occurred after a binary operator
+    C814  # missing trailing comma in Python 2 only

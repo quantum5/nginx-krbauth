@@ -4,16 +4,13 @@ import hashlib
 import hmac
 import logging
 import os
-import time
-import socket
 import struct
-import sys
-from urllib.parse import quote
+import time
 
 import gssapi
 import ldap
-from flask import Flask, request, redirect, url_for, Response
-from gssapi.exceptions import GSSError, GeneralError, BadMechanismError
+from flask import Flask, Response, redirect, request
+from gssapi.exceptions import BadMechanismError, GSSError, GeneralError
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
