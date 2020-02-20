@@ -13,7 +13,7 @@ from urllib.parse import quote
 import gssapi
 import ldap
 from flask import Flask, request, redirect, url_for, Response
-from gssapi.exceptions import GSSError, GeneralError
+from gssapi.exceptions import GSSError, GeneralError, BadMechanismError
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
@@ -78,7 +78,7 @@ def verify_cookie(cookie, context):
     return hmac.compare_digest(expected, signature)
 
 
-def make_401(reason, context, auth='Negotiate', **kwargs):
+def make_401(reason, context, negotiate='Negotiate', **kwargs):
     app.logger.info('Returning unauthorized: %s (%s)', reason, kwargs)
     resp = Response('''\
 <html>
@@ -92,7 +92,8 @@ def make_401(reason, context, auth='Negotiate', **kwargs):
 </body>
 </html>
 ''' % (reason,), status=401)
-    resp.headers.add('WWW-Authenticate', auth)
+    if auth:
+        resp.headers.add('WWW-Authenticate', negotiate)
     if LDAP_USER_DN:
         resp.headers.add('WWW-Authenticate', 'Basic')
     return resp
@@ -115,9 +116,11 @@ def auth_spnego(context, next_url):
         out_token = krb5_ctx.step(in_token)
 
         if not krb5_ctx.complete:
-            return make_401('Negotiation in progress', context, auth=['Negotiate ' + base64.b64encode(out_token)])
+            return make_401('Negotiation in progress', context, negotiate=['Negotiate ' + base64.b64encode(out_token)])
 
         krb5_name = krb5_ctx._inquire(initiator_name=True).initiator_name
+    except BadMechanismError:
+        return make_401('GSSAPI mechanism not supported', context, negotiate=None)
     except (GSSError, GeneralError) as e:
         return make_401(str(e), context)
 
@@ -142,6 +145,9 @@ def auth_basic(context, next_url):
         username, _, password = token.decode('utf-8').partition(':')
     except (binascii.Error, UnicodeDecodeError):
         return Response(status=400)
+
+    if not username or not password:
+        return make_401('Invalid username or password', context)
 
     dn = LDAP_USER_DN % (username,)
     ldap_ctx = ldap.initialize(LDAP_SERVER)
