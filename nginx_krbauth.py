@@ -29,6 +29,8 @@ LDAP_SERVER = os.environ['KRBAUTH_LDAP_SERVER']
 LDAP_BIND_DN = os.environ.get('KRBAUTH_LDAP_BIND_DN')
 LDAP_BIND_AUTHTOK = os.environ.get('KRBAUTH_LDAP_BIND_AUTHTOK')
 LDAP_SEARCH_BASE = os.environ['KRBAUTH_LDAP_SEARCH_BASE']
+LDAP_USER_DN = os.environ.get('KRBAUTH_LDAP_USER_DN')
+assert not LDAP_USER_DN or LDAP_USER_DN.count('%s') == 1
 
 GSSAPI_NAME = os.environ.get('KRBAUTH_GSSAPI_NAME')
 if GSSAPI_NAME:
@@ -76,9 +78,9 @@ def verify_cookie(cookie, context):
     return hmac.compare_digest(expected, signature)
 
 
-def make_401(reason, context, auth='Negotiate', krb5_name=None):
-    app.logger.info('Returning unauthorized: %s (krb5_name=%s, ldap_group=%s)', reason, krb5_name, context.ldap_group)
-    return Response('''\
+def make_401(reason, context, auth='Negotiate', **kwargs):
+    app.logger.info('Returning unauthorized: %s (%s)', reason, kwargs)
+    resp = Response('''\
 <html>
 <head>
 <title>401 Unauthorized</title>
@@ -89,17 +91,20 @@ def make_401(reason, context, auth='Negotiate', krb5_name=None):
 <center>%s</center>
 </body>
 </html>
-''' % (reason,), status=401, headers={'WWW-Authenticate': auth})
+''' % (reason,), status=401)
+    resp.headers.add('WWW-Authenticate', auth)
+    if LDAP_USER_DN:
+        resp.headers.add('WWW-Authenticate', 'Basic')
+    return resp
 
 
-@app.route('/krbauth')
-def auth():
-    next = request.args.get('next', '/')
-    context = Context.from_request()
+def auth_success(context, next_url):
+    resp = redirect(next_url, code=307)
+    resp.set_cookie('krbauth', make_cookie(context), secure=COOKIE_SECURE, httponly=True, samesite='Strict')
+    return resp
 
-    if not request.headers.get('Authorization', '').startswith('Negotiate '):
-        return make_401('No Authorization header sent', context)
 
+def auth_spnego(context, next_url):
     try:
         in_token = base64.b64decode(request.headers['Authorization'][10:])
     except binascii.Error:
@@ -110,7 +115,7 @@ def auth():
         out_token = krb5_ctx.step(in_token)
 
         if not krb5_ctx.complete:
-            return make_401('Negotiation in progress', context, auth='Negotiate ' + base64.b64encode(out_token))
+            return make_401('Negotiation in progress', context, auth=['Negotiate ' + base64.b64encode(out_token)])
 
         krb5_name = krb5_ctx._inquire(initiator_name=True).initiator_name
     except (GSSError, GeneralError) as e:
@@ -121,19 +126,52 @@ def auth():
         if LDAP_BIND_DN and LDAP_BIND_AUTHTOK:
             ldap_ctx.bind_s(LDAP_BIND_DN, LDAP_BIND_AUTHTOK, ldap.AUTH_SIMPLE)
         ldap_filter = '(&(memberOf=%s)(krbPrincipalName=%s))' % (context.ldap_group, krb5_name)
-        try:
-            result = ldap_ctx.search_s(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, ldap_filter, ['cn'])
-        except ldap.NO_SUCH_OBJECT:
-            return make_401('Did not find LDAP group member', context, krb5_name=krb5_name)
+        result = ldap_ctx.search_s(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, ldap_filter, ['cn'])
         if not result:
             return make_401('Did not find LDAP group member', context, krb5_name=krb5_name)
-        app.logger.info('Authenticated as: %s, %s', krb5_name, result[0][0])
+        app.logger.info('Authenticated via Kerberos as: %s, %s', krb5_name, result[0][0])
     else:
-        app.logger.info('Authenticated as: %s', krb5_name)
+        app.logger.info('Authenticated via Kerberos as: %s', krb5_name)
 
-    resp = redirect(next, code=307)
-    resp.set_cookie('krbauth', make_cookie(context), secure=COOKIE_SECURE, httponly=True, samesite='Strict')
-    return resp
+    return auth_success(context, next_url)
+
+
+def auth_basic(context, next_url):
+    try:
+        token = base64.b64decode(request.headers['Authorization'][6:])
+        username, _, password = token.decode('utf-8').partition(':')
+    except (binascii.Error, UnicodeDecodeError):
+        return Response(status=400)
+
+    dn = LDAP_USER_DN % (username,)
+    ldap_ctx = ldap.initialize(LDAP_SERVER)
+    try:
+        ldap_ctx.bind_s(dn, password)
+    except ldap.INVALID_CREDENTIALS:
+        return make_401('Failed to authenticate to LDAP', context, dn=dn)
+
+    if context.ldap_group:
+        if not ldap_ctx.search_s(dn, ldap.SCOPE_BASE, '(memberof=%s)' % (context.ldap_group,)):
+            return make_401('Did not find LDAP group member', context, dn=dn, group=context.ldap_group)
+        app.logger.info('Authenticated via LDAP as: %s in %s', dn, context.ldap_group)
+    else:
+        app.logger.info('Authenticated via LDAP as: %s', dn)
+
+    return auth_success(context, next_url)
+
+
+@app.route('/krbauth')
+def auth():
+    next_url = request.args.get('next', '/')
+    context = Context.from_request()
+    authorization = request.headers.get('Authorization', '')
+
+    if authorization.startswith('Negotiate '):
+        return auth_spnego(context, next_url)
+    if LDAP_USER_DN and authorization.startswith('Basic '):
+        return auth_basic(context, next_url)
+
+    return make_401('No Authorization header sent', context)
 
 
 @app.route('/krbauth/check')
