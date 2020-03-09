@@ -11,9 +11,11 @@ import gssapi
 import ldap
 from flask import Flask, Response, redirect, request
 from gssapi.exceptions import BadMechanismError, GSSError, GeneralError
+from werkzeug.routing import Rule
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
+app.url_map.add(Rule('/krbauth/check', endpoint='krbauth.check'))
 
 timestamp = struct.Struct('!q')
 hmac_digest = hashlib.sha512
@@ -177,7 +179,7 @@ def auth():
     return make_401('No Authorization header sent', context)
 
 
-@app.route('/krbauth/check')
+@app.endpoint('krbauth.check')
 def check():
     if verify_cookie(request.cookies.get('krbauth'), Context.from_request()):
         return Response(status=200)
