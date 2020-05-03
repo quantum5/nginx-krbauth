@@ -91,7 +91,7 @@ def make_401(reason, context, negotiate='Negotiate', **kwargs):
 </body>
 </html>
 ''' % (reason,), status=401)
-    if auth:
+    if negotiate:
         resp.headers.add('WWW-Authenticate', negotiate)
     if LDAP_USER_DN:
         resp.headers.add('WWW-Authenticate', 'Basic')
