@@ -73,7 +73,7 @@ def verify_cookie(cookie, context):
         return False
     if not hmac.compare_digest(message[timestamp.size + RANDOM_SIZE:], context.bytes()):
         return False
-    expected = hmac.new(HMAC_KEY, message, hashlib.sha512).digest()
+    expected = hmac.new(HMAC_KEY, message, hmac_digest).digest()
     return hmac.compare_digest(expected, signature)
 
 
