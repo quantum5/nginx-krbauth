@@ -79,8 +79,8 @@ LDAP binding can also be used as a fallback authentication mechanism through
 HTTP Basic authentication. This is useful when SPNEGO is not supported, or when
 the client does not support Kerberos. To use this, configure:
 
-* `LDAP_USER_DN`: A string template to convert usernames into LDAP DNs. There
-  should be one `%s` symbol in this string, which will be replaced by the
+* `KRBAUTH_LDAP_USER_DN`: A string template to convert usernames into LDAP DNs.
+  There should be one `%s` symbol in this string, which will be replaced by the
   username.
 
 ## Example `nginx.conf`
