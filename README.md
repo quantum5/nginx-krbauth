@@ -1,4 +1,4 @@
-# nginx-krbauth
+# nginx-krbauth [![PyPI](https://img.shields.io/pypi/v/nginx-krbauth.svg)](https://pypi.org/project/nginx-krbauth/) [![PyPI - Format](https://img.shields.io/pypi/format/nginx-krbauth.svg)](https://pypi.org/project/nginx-krbauth/) [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/nginx-krbauth.svg)](https://pypi.org/project/nginx-krbauth/)
 LDAP + Kerberos authenticator for nginx's auth_request module.
 
 ## Installation
