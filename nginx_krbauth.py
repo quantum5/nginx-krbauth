@@ -16,6 +16,7 @@ from werkzeug.routing import Rule
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
+app.url_map.add(Rule('/krbauth', endpoint='krbauth.auth'))
 app.url_map.add(Rule('/krbauth/check', endpoint='krbauth.check'))
 
 timestamp = struct.Struct('!q')
@@ -169,7 +170,7 @@ def auth_basic(context: Context, next_url: str) -> Response:
     return auth_success(context, next_url)
 
 
-@app.route('/krbauth')
+@app.endpoint('krbauth.auth')
 def auth() -> Response:
     next_url = request.args.get('next', '/')
     context = Context.from_request()
