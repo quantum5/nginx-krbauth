@@ -4,7 +4,13 @@ LDAP + Kerberos authenticator for nginx's auth_request module.
 ## Installation
 
 ```sh
-pip install git://github.com/quantum5/nginx-krbauth.git
+pip install nginx-krbauth
+```
+
+If, for some reason, you want to use the latest code from git:
+
+```sh
+pip install git+https://github.com/quantum5/nginx-krbauth.git
 ```
 
 ## Usage
