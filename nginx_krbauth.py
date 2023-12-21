@@ -56,10 +56,10 @@ class Context:
         return ''.join([self.ldap_group]).encode('utf-8')
 
 
-def make_cookie(context: Context) -> bytes:
+def make_cookie(context: Context) -> str:
     message = timestamp.pack(int(time.time()) + DURATION) + os.urandom(RANDOM_SIZE) + context.bytes()
     signature = hmac.new(HMAC_KEY, message, hmac_digest).digest()
-    return base64.b64encode(signature + message)
+    return base64.b64encode(signature + message).decode()
 
 
 def verify_cookie(cookie: Optional[str], context: Context) -> bool:
