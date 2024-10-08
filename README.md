@@ -89,6 +89,27 @@ the client does not support Kerberos. To use this, configure:
   There should be one `%s` symbol in this string, which will be replaced by the
   username.
 
+### TLS Client Certificate
+
+It's also possible to use client certificates on machines that have them for
+authentication purposes instead of using LDAP or Kerberos. To do this, set
+the environment variable `KRBAUTH_TLS_CERT_AUTH` to `1` or `yes`.
+
+Then, pass the WSGI environment variable `NGINX_SSL_CLIENT_VERIFY` from `nginx`,
+setting it to the value of `$ssl_client_verify`, like this:
+
+```nginx
+uwsgi_param NGINX_SSL_CLIENT_VERIFY "$ssl_client_verify";
+```
+
+You most likely want to make client certificate verification optional if you
+are using it with `nginx-krbauth`:
+
+```nginx
+ssl_client_certificate /path/to/ca.crt;
+ssl_verify_client optional;
+```
+
 ## Example `nginx.conf`
 
 ```nginx

@@ -41,6 +41,7 @@ else:
     gssapi_creds = None
 
 COOKIE_SECURE = os.environ.get('KRBAUTH_SECURE_COOKIE', '1').lower() not in ('0', 'no')
+TLS_CERT_AUTH = os.environ.get('KRBAUTH_TLS_CERT_AUTH', '0').lower() in ('1', 'yes')
 
 
 class Context:
@@ -170,12 +171,21 @@ def auth_basic(context: Context, next_url: str) -> Response:
     return auth_success(context, next_url)
 
 
+def check_tls() -> bool:
+    if not TLS_CERT_AUTH:
+        return False
+
+    return request.environ.get('NGINX_SSL_CLIENT_VERIFY') == 'SUCCESS'
+
+
 @app.endpoint('krbauth.auth')
 def auth() -> Response:
     next_url = request.args.get('next', '/')
     context = Context.from_request()
     authorization = request.headers.get('Authorization', '')
 
+    if check_tls():
+        return auth_success(context, next_url)
     if authorization.startswith('Negotiate '):
         return auth_spnego(context, next_url)
     if LDAP_USER_DN and authorization.startswith('Basic '):
@@ -186,6 +196,6 @@ def auth() -> Response:
 
 @app.endpoint('krbauth.check')
 def check() -> Response:
-    if verify_cookie(request.cookies.get('krbauth'), Context.from_request()):
+    if check_tls() or verify_cookie(request.cookies.get('krbauth'), Context.from_request()):
         return Response(status=200)
     return Response(status=401)
