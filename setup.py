@@ -7,7 +7,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as f:
 
 setup(
     name='nginx_krbauth',
-    version='0.0.3',
+    version='0.0.4',
     py_modules=['nginx_krbauth'],
     install_requires=['flask', 'gssapi', 'python-ldap'],
 
@@ -27,11 +27,11 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
         'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
         'Topic :: Security',
