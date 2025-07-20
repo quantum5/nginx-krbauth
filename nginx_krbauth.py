@@ -34,6 +34,7 @@ LDAP_SEARCH_BASE = os.environ.get('KRBAUTH_LDAP_SEARCH_BASE')
 LDAP_USER_DN = os.environ.get('KRBAUTH_LDAP_USER_DN')
 assert not LDAP_USER_DN or LDAP_USER_DN.count('%s') == 1
 
+ENABLE_GSSAPI = os.environ.get('KRBAUTH_DISABLE_GSSAPI', '0').lower() not in ('1', 'yes')
 GSSAPI_NAME = os.environ.get('KRBAUTH_GSSAPI_NAME')
 if GSSAPI_NAME:
     gssapi_name = gssapi.Name(GSSAPI_NAME, gssapi.NameType.hostbased_service)
@@ -96,7 +97,7 @@ def make_401(reason: str, negotiate: Optional[str] = 'Negotiate', **kwargs) -> R
 </body>
 </html>
 ''' % (reason,), status=401)
-    if negotiate:
+    if ENABLE_GSSAPI and negotiate:
         resp.headers.add('WWW-Authenticate', negotiate)
     if LDAP_USER_DN:
         resp.headers.add('WWW-Authenticate', 'Basic')
@@ -192,7 +193,7 @@ def auth() -> Response:
 
     if check_tls():
         return auth_success(context, next_url)
-    if authorization.startswith('Negotiate '):
+    if ENABLE_GSSAPI and authorization.startswith('Negotiate '):
         return auth_spnego(context, next_url)
     if LDAP_USER_DN and authorization.startswith('Basic '):
         return auth_basic(context, next_url)
