@@ -12,6 +12,7 @@ import gssapi
 import ldap
 from flask import Flask, Response, redirect, request
 from gssapi.exceptions import BadMechanismError, GSSError, GeneralError
+from ldap.filter import escape_filter_chars
 from werkzeug.routing import Rule
 
 app = Flask(__name__)
@@ -132,10 +133,13 @@ def auth_spnego(context: Context, next_url: str) -> Response:
         ldap_ctx = ldap.initialize(LDAP_SERVER)
         if LDAP_BIND_DN and LDAP_BIND_AUTHTOK:
             ldap_ctx.bind_s(LDAP_BIND_DN, LDAP_BIND_AUTHTOK, ldap.AUTH_SIMPLE)
-        ldap_filter = '(&(memberOf=%s)(krbPrincipalName=%s))' % (context.ldap_group, krb5_name)
+        ldap_filter = '(&(memberOf=%s)(krbPrincipalName=%s))' % (
+            escape_filter_chars(context.ldap_group),
+            escape_filter_chars(krb5_name),
+        )
         result = ldap_ctx.search_s(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, ldap_filter, ['cn'])
         if not result:
-            return make_401('Did not find LDAP group member', krb5_name=krb5_name)
+            return make_401('Failed to authenticate', krb5_name=krb5_name)
         app.logger.info('Authenticated via Kerberos as: %s, %s', krb5_name, result[0][0])
     else:
         app.logger.info('Authenticated via Kerberos as: %s', krb5_name)
@@ -162,8 +166,10 @@ def auth_basic(context: Context, next_url: str) -> Response:
         return make_401('Failed to authenticate to LDAP', dn=dn)
 
     if context.ldap_group:
-        if not ldap_ctx.search_s(dn, ldap.SCOPE_BASE, '(memberof=%s)' % (context.ldap_group,)):
-            return make_401('Did not find LDAP group member', dn=dn, group=context.ldap_group)
+        if not ldap_ctx.search_s(dn, ldap.SCOPE_BASE, '(memberof=%s)' % (
+                escape_filter_chars(context.ldap_group),
+        )):
+            return make_401('Failed to authenticate to LDAP', dn=dn, group=context.ldap_group)
         app.logger.info('Authenticated via LDAP as: %s in %s', dn, context.ldap_group)
     else:
         app.logger.info('Authenticated via LDAP as: %s', dn)
