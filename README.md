@@ -89,6 +89,9 @@ the client does not support Kerberos. To use this, configure:
   There should be one `%s` symbol in this string, which will be replaced by the
   username.
 
+You may also choose to exclusively use LDAP without using any Kerberos or GSSAPI
+by setting the environment variable `KRBAUTH_DISABLE_GSSAPI=yes`.
+
 ### TLS Client Certificate
 
 It's also possible to use client certificates on machines that have them for
@@ -110,6 +113,16 @@ ssl_client_certificate /path/to/ca.crt;
 ssl_verify_client optional;
 ```
 
+### Rate limiting
+
+`nginx-krbauth` supports rate limiting. The rate limiting frequency can be
+configured by `KRBAUTH_LIMITER_FREQUENCY` environment variable. The default is
+`10 / 5 minute`, but you can adjust this as needed.
+
+The rate limiting state is stored in memory. You can use any
+[storage mechanism][limits-storage] supported by the `limits` PyPI package.
+Remember to install any dependencies!
+
 ## Example `nginx.conf`
 
 ```nginx
@@ -128,3 +141,5 @@ location /krbauth {
     include uwsgi_params;
 }
 ```
+
+[limits-storage]: https://limits.readthedocs.io/en/stable/storage.html#storage-scheme

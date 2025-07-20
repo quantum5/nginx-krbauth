@@ -24,7 +24,7 @@ app.url_map.add(Rule('/krbauth', endpoint='krbauth.auth'))
 app.url_map.add(Rule('/krbauth/check', endpoint='krbauth.check'))
 
 LIMITER_STORAGE = os.environ.get('KRBAUTH_LIMITER_STORAGE', 'memory://')
-LIMITER_FREQUENCY = os.environ.get('KRBAUTH_LIMITER_FREQUENCY', '3/minute')
+LIMITER_FREQUENCY = os.environ.get('KRBAUTH_LIMITER_FREQUENCY', '10 / 5 minute')
 limiter = Limiter(get_remote_address, app=app, storage_uri=LIMITER_STORAGE)
 
 timestamp = struct.Struct('!q')
