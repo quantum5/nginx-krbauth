@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import logging
 import os
+import re
 import struct
 import time
 from typing import Optional
@@ -154,6 +155,10 @@ def auth_spnego(context: Context, next_url: str) -> Response:
     return auth_success(context, next_url)
 
 
+def is_sane_username(username: str) -> bool:
+    return len(username) <= 64 and re.match(r'^[a-zA-Z0-9._@-]+$', username) is not None
+
+
 def auth_basic(context: Context, next_url: str) -> Response:
     try:
         token = base64.b64decode(request.headers['Authorization'][6:])
@@ -161,8 +166,8 @@ def auth_basic(context: Context, next_url: str) -> Response:
     except (binascii.Error, UnicodeDecodeError):
         return Response(status=400)
 
-    if not username or not password:
-        return make_401('Invalid username or password')
+    if not username or not is_sane_username(username) or not password:
+        return make_401('Authentication failed')
 
     assert LDAP_USER_DN is not None
     dn = LDAP_USER_DN % (username,)
