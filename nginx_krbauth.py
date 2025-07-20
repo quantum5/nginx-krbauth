@@ -11,6 +11,8 @@ from typing import Optional
 import gssapi
 import ldap
 from flask import Flask, Response, redirect, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from gssapi.exceptions import BadMechanismError, GSSError, GeneralError
 from ldap.filter import escape_filter_chars
 from werkzeug.routing import Rule
@@ -19,6 +21,10 @@ app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
 app.url_map.add(Rule('/krbauth', endpoint='krbauth.auth'))
 app.url_map.add(Rule('/krbauth/check', endpoint='krbauth.check'))
+
+LIMITER_STORAGE = os.environ.get('KRBAUTH_LIMITER_STORAGE', 'memory://')
+LIMITER_FREQUENCY = os.environ.get('KRBAUTH_LIMITER_FREQUENCY', '3/minute')
+limiter = Limiter(get_remote_address, app=app, storage_uri=LIMITER_STORAGE)
 
 timestamp = struct.Struct('!q')
 hmac_digest = hashlib.sha512
@@ -140,7 +146,7 @@ def auth_spnego(context: Context, next_url: str) -> Response:
         )
         result = ldap_ctx.search_s(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, ldap_filter, ['cn'])
         if not result:
-            return make_401('Failed to authenticate', krb5_name=krb5_name)
+            return make_401('Authentication failed', krb5_name=krb5_name)
         app.logger.info('Authenticated via Kerberos as: %s, %s', krb5_name, result[0][0])
     else:
         app.logger.info('Authenticated via Kerberos as: %s', krb5_name)
@@ -164,16 +170,16 @@ def auth_basic(context: Context, next_url: str) -> Response:
     try:
         ldap_ctx.bind_s(dn, password)
     except ldap.INVALID_CREDENTIALS:
-        return make_401('Failed to authenticate to LDAP', dn=dn)
+        return make_401('Authentication failed', dn=dn)
 
     if context.ldap_group:
         if not ldap_ctx.search_s(dn, ldap.SCOPE_BASE, '(memberof=%s)' % (
                 escape_filter_chars(context.ldap_group),
         )):
-            return make_401('Failed to authenticate to LDAP', dn=dn, group=context.ldap_group)
-        app.logger.info('Authenticated via LDAP as: %s in %s', dn, context.ldap_group)
+            return make_401('Authentication failed', dn=dn, group=context.ldap_group)
+        app.logger.info('Authenticated via LDAP as: %s in %s from %s', dn, context.ldap_group, request.remote_addr)
     else:
-        app.logger.info('Authenticated via LDAP as: %s', dn)
+        app.logger.info('Authenticated via LDAP as: %s from %s', dn, request.remote_addr)
 
     return auth_success(context, next_url)
 
@@ -186,6 +192,7 @@ def check_tls() -> bool:
 
 
 @app.endpoint('krbauth.auth')
+@limiter.limit(LIMITER_FREQUENCY)
 def auth() -> Response:
     next_url = request.args.get('next', '/')
     context = Context.from_request()

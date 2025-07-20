@@ -9,7 +9,7 @@ setup(
     name='nginx_krbauth',
     version='0.0.4',
     py_modules=['nginx_krbauth'],
-    install_requires=['flask', 'gssapi', 'python-ldap'],
+    install_requires=['flask', 'gssapi', 'python-ldap', 'flask-limiter'],
 
     author='quantum',
     author_email='quantum2048@gmail.com',
