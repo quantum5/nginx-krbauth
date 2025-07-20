@@ -192,7 +192,8 @@ def auth() -> Response:
     authorization = request.headers.get('Authorization', '')
 
     if check_tls():
-        return auth_success(context, next_url)
+        # No cookie required since the check endpoint can trivially verify mTLS.
+        return redirect(next_url, code=307)
     if ENABLE_GSSAPI and authorization.startswith('Negotiate '):
         return auth_spnego(context, next_url)
     if LDAP_USER_DN and authorization.startswith('Basic '):
