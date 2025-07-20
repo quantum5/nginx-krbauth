@@ -142,7 +142,7 @@ def auth_spnego(context: Context, next_url: str) -> Response:
             ldap_ctx.bind_s(LDAP_BIND_DN, LDAP_BIND_AUTHTOK, ldap.AUTH_SIMPLE)
         ldap_filter = '(&(memberOf=%s)(krbPrincipalName=%s))' % (
             escape_filter_chars(context.ldap_group),
-            escape_filter_chars(krb5_name),
+            escape_filter_chars(str(krb5_name)),
         )
         result = ldap_ctx.search_s(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, ldap_filter, ['cn'])
         if not result:
